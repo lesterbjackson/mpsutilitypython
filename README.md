@@ -36,5 +36,4 @@ Credits:     Special thanks to friends, colleages and family...
 
 - Dimitris Gkantsios https://github.com/dgkanatsios
 - Ardon Bailey https://github.com/waystilos
-- Professor Humaira Jackson for bearing with me in my first GitHub project during 2021 Labor Day weekend
-- Coursera Python 3 Programming https://www.coursera.org/specializations/python-3-programming
+
