@@ -27,10 +27,10 @@ License:     Apache License 2.0
 
 Resources:   
 
-https://docs.microsoft.com/en-us/rest/api/playfab/multiplayer/multiplayer-server
-https://pynative.com/python-post-json-using-requests-library/
-https://www.scrapingbee.com/blog/how-to-send-post-python-requests/
-https://appdividend.com/2020/06/22/python-requests-post-method-example/
+- https://docs.microsoft.com/en-us/rest/api/playfab/multiplayer/multiplayer-server
+- https://pynative.com/python-post-json-using-requests-library/
+- https://www.scrapingbee.com/blog/how-to-send-post-python-requests/
+- https://appdividend.com/2020/06/22/python-requests-post-method-example/
 
 Credits:     Special thanks to friends, colleages and family...
 
