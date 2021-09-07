@@ -24,11 +24,19 @@
 #              - Coursera Python 3 Programming https://www.coursera.org/specializations/python-3-programming
 #
 
+#############################################################################
+# MPS Utility Import Modules
+#############################################################################
+
 import requests
 import json
 import os
-import uuid
 import time
+import uuid
+
+#############################################################################
+# MPS Utility Global Variables
+#############################################################################
 
 #global dictionary settings
 mps = {}
@@ -46,126 +54,9 @@ headers = {
 #title id configured in mpsutility.cfg and populated at start of main loop
 title_id = ""
 
-#Function that issues HTTP Post to PlayFab REST API
-#Optional debug param of 1 prints status code, URL and API response
-def callAPI(method, headers, data, debug = 0):
-    baseurl = "https://" + title_id + "." + endpoint + method
-    responseAPI = requests.post(baseurl, headers = headers, json = data) 
-    responseJSON = json.loads(responseAPI.text)
-    if debug == 1:
-        print("Status code: ", responseAPI.status_code)
-        print(responseAPI.url)
-        print(json.dumps(responseJSON, indent=2))
-    
-    return responseJSON
- 
-# Make a random UUID; used for session ID in MPS allocations
-def getRandomGUID():
-    randomSession =  uuid.uuid4()
-    return str(randomSession)
-
-# Defines global MPS dictionary object
-def GetAppSelection():
-
-    appselection = {}
-
-    bldIndex = 0
-    for bld in mps["builds"]:
-        print("[{}] - {} ({})".format(bldIndex, bld['BuildName'], bld['BuildId']))
-        bldIndex += 1
-    
-    bldChoice = input("Chose a build: ")
-    if bldChoice.isnumeric():
-        bldChoice = int(bldChoice)
-    
-    while bldChoice not in range(bldIndex):
-        bldChoice = input("Chose a build: ")
-        if bldChoice.isnumeric():
-            bldChoice = int(bldChoice)
-
-    bldNum = int(bldChoice)
-    if bldNum in range(bldIndex):
-        print( "Build ", mps["builds"][bldNum]['BuildName'], " Selected")
-        appselection['BuildName'] = mps["builds"][bldNum]['BuildName']
-        appselection['BuildId'] = mps["builds"][bldNum]['BuildId']
-
-    regIndex = 0          
-    for reg in mps["builds"][bldNum]['Regions']:
-        print("[{}] - {} ".format(regIndex, mps["builds"][bldNum]['Regions'][regIndex]))
-        regIndex += 1
-    
-    regionChoice = input("Chose a region: ")
-    if regionChoice.isnumeric():
-        regionChoice = int(regionChoice)
-    
-    while regionChoice not in range(regIndex):
-        regionChoice = input("Chose a region: ")
-        if regionChoice.isnumeric():
-            regionChoice = int(bldChoice)
-
-    regNum = int(regionChoice)
-    if regNum in range(regIndex):
-        print( "Region ", mps["builds"][bldNum]['Regions'][regNum], " Selected")
-        appselection['Region'] = mps["builds"][bldNum]['Regions'][regNum]
-
-    return appselection
-
-# Lists and captures session ID from user input
-def GetServerSelection(appSelection):
-
-    sessionIndex = 0
-    for session in mps["servers"]:
-        if 'SessionId' in session:
-            print("[{}] - {} (Active) ".format(sessionIndex, session['SessionId'] ) )
-        else:
-            print("[{}] - {} (Standby)".format(sessionIndex, "N/A" ) )
-        sessionIndex += 1
-    
-    if sessionIndex == 0:       # check if there are no active servers
-        return
-    else:
-        sessionChoice = input("Chose a session: ")
-        if sessionChoice.isnumeric():
-            sessionChoice = int(sessionChoice)
-        
-        while sessionChoice not in range(sessionIndex):
-            sessionChoice = input("Chose a session: ")
-            if sessionChoice.isnumeric():
-                sessionChoice = int(sessionChoice)
-
-    sessionNum = int(sessionChoice)
-    if sessionNum in range(sessionIndex):
-        print( "Session ", mps["servers"][sessionNum]['SessionId'], " Selected")
-        appSelection['SessionId'] = mps["servers"][sessionNum]['SessionId']
-
-    return appSelection['SessionId']
-
-# Menu driven user interface
-def callMenu():
-    os.system('cls')
-    print("1 - List Build Settings")
-    print("2 - List Virtual Machines")
-    print("3 - List Multiplayer Servers")
-    print("4 - Get Multiplayer Server Details")
-    print("5 - Request Multiplayer Server")
-    print("6 - Shutdown Multiplayer Server")
-    print("7 - Update Build Regions")
-    print("8 - List Headers")
-    print("9 - Exit")
-    return
-
-# Initializes utility as server side app; calls Authentication/GetEntityToken
-def authUtility():
-
-    method = "Authentication/GetEntityToken"
-    data = {}
-    resp = callAPI(method, headers, data)
-    if resp['code'] == 200:
-        headers['X-EntityToken'] = resp['data']['EntityToken']
-        return True
-    else:
-        print(method, " Fail")
-        return False
+#############################################################################
+# MPS Utility Handlers
+#############################################################################
 
 # Lists MPS build settings; calls MultiplayerServer/ListBuildSummariesV2
 def ListBuildSettings(debug):
@@ -386,6 +277,181 @@ def UpdateBuildRegion(appchoice, debug=0):
     else:
         return False
 
+#############################################################################
+# MPS Utility Helpers
+#############################################################################
+
+# Make a random UUID; used for session ID in MPS allocations
+def getRandomGUID():
+    randomSession =  uuid.uuid4()
+    return str(randomSession)
+
+#Function that issues HTTP Post to PlayFab REST API
+#Optional debug param of 1 prints status code, URL and API response
+def callAPI(method, headers, data, debug = 0):
+    baseurl = "https://" + title_id + "." + endpoint + method
+    responseAPI = requests.post(baseurl, headers = headers, json = data) 
+    responseJSON = json.loads(responseAPI.text)
+    if debug == 1:
+        print("Status code: ", responseAPI.status_code)
+        print(responseAPI.url)
+        print(json.dumps(responseJSON, indent=2))
+    
+    return responseJSON
+ 
+# Defines global MPS dictionary object
+def GetAppSelection():
+
+    appselection = {}
+
+    bldIndex = 0
+    for bld in mps["builds"]:
+        print("[{}] - {} ({})".format(bldIndex, bld['BuildName'], bld['BuildId']))
+        bldIndex += 1
+    
+    bldChoice = input("Chose a build: ")
+    if bldChoice.isnumeric():
+        bldChoice = int(bldChoice)
+    
+    while bldChoice not in range(bldIndex):
+        bldChoice = input("Chose a build: ")
+        if bldChoice.isnumeric():
+            bldChoice = int(bldChoice)
+
+    bldNum = int(bldChoice)
+    if bldNum in range(bldIndex):
+        print( "Build ", mps["builds"][bldNum]['BuildName'], " Selected")
+        appselection['BuildName'] = mps["builds"][bldNum]['BuildName']
+        appselection['BuildId'] = mps["builds"][bldNum]['BuildId']
+
+    regIndex = 0          
+    for reg in mps["builds"][bldNum]['Regions']:
+        print("[{}] - {} ".format(regIndex, mps["builds"][bldNum]['Regions'][regIndex]))
+        regIndex += 1
+    
+    regionChoice = input("Chose a region: ")
+    if regionChoice.isnumeric():
+        regionChoice = int(regionChoice)
+    
+    while regionChoice not in range(regIndex):
+        regionChoice = input("Chose a region: ")
+        if regionChoice.isnumeric():
+            regionChoice = int(bldChoice)
+
+    regNum = int(regionChoice)
+    if regNum in range(regIndex):
+        print( "Region ", mps["builds"][bldNum]['Regions'][regNum], " Selected")
+        appselection['Region'] = mps["builds"][bldNum]['Regions'][regNum]
+
+    return appselection
+
+# Lists and captures session ID from user input
+def GetServerSelection(appSelection):
+
+    sessionIndex = 0
+    for session in mps["servers"]:
+        if 'SessionId' in session:
+            print("[{}] - {} (Active) ".format(sessionIndex, session['SessionId'] ) )
+        else:
+            print("[{}] - {} (Standby)".format(sessionIndex, "N/A" ) )
+        sessionIndex += 1
+    
+    if sessionIndex == 0:       # check if there are no active servers
+        return
+    else:
+        sessionChoice = input("Chose a session: ")
+        if sessionChoice.isnumeric():
+            sessionChoice = int(sessionChoice)
+        
+        while sessionChoice not in range(sessionIndex):
+            sessionChoice = input("Chose a session: ")
+            if sessionChoice.isnumeric():
+                sessionChoice = int(sessionChoice)
+
+    sessionNum = int(sessionChoice)
+    if sessionNum in range(sessionIndex):
+        print( "Session ", mps["servers"][sessionNum]['SessionId'], " Selected")
+        appSelection['SessionId'] = mps["servers"][sessionNum]['SessionId']
+
+    return appSelection['SessionId']
+
+# Initializes utility as server side app; calls Authentication/GetEntityToken
+def authUtility():
+
+    method = "Authentication/GetEntityToken"
+    data = {}
+    resp = callAPI(method, headers, data)
+    if resp['code'] == 200:
+        headers['X-EntityToken'] = resp['data']['EntityToken']
+        return True
+    else:
+        print(method, " Fail")
+        return False
+
+# Initializes utility by populating MPS global object
+def initUtility():
+
+    ListBuildSettings(0)
+    return
+
+# Initializes utility configuration; dependency on mpsutility.cfg file
+# Populates secrete key and title id
+def initConfig(debug=0):
+
+    CONFIG = 'mpsutility.cfg'
+    mpsutilityconfig = {}
+
+    try:
+        fhand=open(CONFIG)
+    except:
+        print("Required file {} not found".format(CONFIG))
+        exit()
+
+    count = 0
+
+    for line in fhand:
+
+        if 'TITLE_ID' in line:
+            if '#TITLE_ID' in line:
+                continue
+            mylist = line.split("=")
+            mystring = mylist[1].strip()
+            mpsutilityconfig['TITLE_ID'] = mystring
+            if debug == 1:
+                print(line)
+                print("value = {} and len = {}".format(mystring, len(mystring) ) )
+        elif 'SECRET_KEY' in line:
+            if '#SECRET_KEY' in line:
+                continue
+            mylist = line.split("=")
+            mystring = mylist[1].strip()
+            mpsutilityconfig['SECRET_KEY'] = mystring
+            if debug == 1:
+                print(line)
+                print("value = {} and len = {}".format(mystring, len(mystring) ) )
+    
+    fhand.close()
+
+    return mpsutilityconfig
+
+#############################################################################
+# MPS Utility Main Loop
+#############################################################################
+
+# Menu driven user interface
+def callMenu():
+    os.system('cls')
+    print("1 - List Build Settings")
+    print("2 - List Virtual Machines")
+    print("3 - List Multiplayer Servers")
+    print("4 - Get Multiplayer Server Details")
+    print("5 - Request Multiplayer Server")
+    print("6 - Shutdown Multiplayer Server")
+    print("7 - Update Build Regions")
+    print("8 - List Headers")
+    print("9 - Exit")
+    return
+
 #Defines main console loop and processes user input
 def MainLoop():
 
@@ -449,55 +515,7 @@ def MainLoop():
 
         firstRun = False
 
-# Initializes utility by populating MPS global object
-def initUtility():
-
-    ListBuildSettings(0)
-    
-    return
-
-# Initializes utility configuration; dependency on mpsutility.cfg file
-# Populates secrete key and title id
-def initConfig(debug=0):
-
-    CONFIG = 'mpsutility.cfg'
-    mpsutilityconfig = {}
-
-    try:
-        fhand=open(CONFIG)
-    except:
-        print("Required file {} not found".format(CONFIG))
-        exit()
-
-    count = 0
-
-    for line in fhand:
-
-        if 'TITLE_ID' in line:
-            if '#TITLE_ID' in line:
-                continue
-            mylist = line.split("=")
-            mystring = mylist[1].strip()
-            mpsutilityconfig['TITLE_ID'] = mystring
-            if debug == 1:
-                print(line)
-                print("value = {} and len = {}".format(mystring, len(mystring) ) )
-        elif 'SECRET_KEY' in line:
-            if '#SECRET_KEY' in line:
-                continue
-            mylist = line.split("=")
-            mystring = mylist[1].strip()
-            mpsutilityconfig['SECRET_KEY'] = mystring
-            if debug == 1:
-                print(line)
-                print("value = {} and len = {}".format(mystring, len(mystring) ) )
-    
-    fhand.close()
-
-    return mpsutilityconfig
-    
 # This is the start of the MPS utility
 os.system('cls')
 
 MainLoop()
-
