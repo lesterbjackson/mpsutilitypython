@@ -9,7 +9,7 @@ Published:   Inital September 6, 2021
 
 Description: A menu driven console utility coded in Python for PlayFab Multiplayer Server developers.  
              The utility provides three functions: (1) Allocates game servers, (2) Configures game server limits
-             and (3) reports hosted status for game server builds, virtual machines and sessions
+             and (3) Reports status for game server builds, virtual machines and sessions
 
 Support:     Implemented wtih Python 3.9.5
 
