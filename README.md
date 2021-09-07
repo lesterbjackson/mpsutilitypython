@@ -25,13 +25,16 @@ Copyright:   Lester Jackson (aka Bingfoot)
 
 License:     Apache License 2.0
 
-Resources:   https://docs.microsoft.com/en-us/rest/api/playfab/multiplayer/multiplayer-server
-             https://pynative.com/python-post-json-using-requests-library/
-             https://www.scrapingbee.com/blog/how-to-send-post-python-requests/
-             https://appdividend.com/2020/06/22/python-requests-post-method-example/
+Resources:   
+
+https://docs.microsoft.com/en-us/rest/api/playfab/multiplayer/multiplayer-server
+https://pynative.com/python-post-json-using-requests-library/
+https://www.scrapingbee.com/blog/how-to-send-post-python-requests/
+https://appdividend.com/2020/06/22/python-requests-post-method-example/
 
 Credits:     Special thanks to friends, colleages and family...
-             - Dimitris Gkantsios https://github.com/dgkanatsios
-             - Ardon Bailey https://github.com/waystilos
-             - Professor Humaira Jackson for bearing with me in my first GitHub project during 2021 Labor Day weekend
-             - Coursera Python 3 Programming https://www.coursera.org/specializations/python-3-programming
+
+- Dimitris Gkantsios https://github.com/dgkanatsios
+- Ardon Bailey https://github.com/waystilos
+- Professor Humaira Jackson for bearing with me in my first GitHub project during 2021 Labor Day weekend
+- Coursera Python 3 Programming https://www.coursera.org/specializations/python-3-programming
