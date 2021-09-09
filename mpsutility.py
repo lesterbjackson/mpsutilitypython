@@ -8,8 +8,10 @@
 #              and (3) reports hosted status for game server builds, virtual machines and sessions
 # Support:     Implemented wtih Python 3.9.5
 # Background:  The utility calls and returns PlayFab Multiplayer Server REST API responses
-# Files:       mpsutility.py (main loop & supporting functions), mpsutility.cfg (utility configuration)
-# Instructions:(1) Modify mpsutility.cfg, (2) Run mpsutility.py in same folder with mpsutility.cfg
+# Files:       mpsutility.py (utility handlers & main loop), mpsutility.json (utility configuration)
+# Instructions:(1) Modify mpsutility.json, (2) Run mpsutility.py in same folder with mpsutility.json
+#              (3) Alternatively, command line driven execution can be accomplished with...             
+#               mpsutility build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]
 # Tested:      Only0 tested in Windows, concievably should work in Linux and Mac OS X
 # Copyright:   Lester Jackson (aka Bingfoot)
 # License:     Apache License 2.0
@@ -31,6 +33,7 @@
 import requests
 import json
 import os
+import sys
 import time
 import uuid
 
@@ -41,6 +44,7 @@ import uuid
 #global dictionary settings
 mps = {}
 appchoice = {}
+config = 'mpsutility.json'
 
 #change endpoint for testing or unique vertical
 endpoint = "playfabapi.com/" 
@@ -63,7 +67,7 @@ def ListBuildSettings(debug):
 
     method = "MultiplayerServer/ListBuildSummariesV2"
     data = {'PageSize': '10'}
-    resp = callAPI(method, headers, data, debug)
+    resp = MPSAPIHandler(method, headers, data, debug)
     if resp['code'] == 200:
         buildlist=[]
         for x in resp['data']['BuildSummaries']:
@@ -88,7 +92,7 @@ def ListVirtualMachines(appchoice, debug=0):
 
     method = "MultiplayerServer/ListVirtualMachineSummaries"
     data = {'BuildId': appchoice['BuildId'], 'Region': appchoice['Region'], 'PageSize': '10'}
-    resp = callAPI(method, headers, data, debug)
+    resp = MPSAPIHandler(method, headers, data, debug)
 
     if resp['code'] == 200:
         #print(method, " Success")
@@ -110,8 +114,8 @@ def ListVirtualMachines(appchoice, debug=0):
 def ListMultiplayerServers(appchoice, debug=0):
 
     method = "MultiplayerServer/ListMultiplayerServers"
-    data = {'BuildId': appchoice['BuildId'], 'Region': appchoice['Region']}
-    resp = callAPI(method, headers, data, debug)
+    data = {'BuildId': appchoice['BuildId'], 'Region': appchoice['Region'] ,'PageSize': 100}
+    resp = MPSAPIHandler(method, headers, data, debug)
 
     if resp['code'] == 200:
         serverlist=[]
@@ -148,7 +152,7 @@ def GetMultiplayerServerDetails(appchoice, debug=0):
         
     method = "MultiplayerServer/GetMultiplayerServerDetails"
     data = {'BuildId': appchoice['BuildId'], 'SessionId': appchoice['SessionId'], 'Region':  appchoice['Region']  }
-    resp = callAPI(method, headers, data, debug)
+    resp = MPSAPIHandler(method, headers, data, debug)
 
     if resp['code'] == 200:
 
@@ -187,7 +191,7 @@ def ShutdownMultiplayerServer(appchoice, debug=0):
 
     method = "MultiplayerServer/ShutdownMultiplayerServer"
     data = {'BuildId': appchoice['BuildId'], 'SessionId': appchoice['SessionId'], 'Region':  appchoice['Region'] }
-    resp = callAPI(method, headers, data, debug)
+    resp = MPSAPIHandler(method, headers, data, debug)
 
     if resp['code'] == 200:
         print(json.dumps(resp, sort_keys=False, indent=4))
@@ -195,19 +199,32 @@ def ShutdownMultiplayerServer(appchoice, debug=0):
     else:
         return False
 
-# Allocates MPS servers; calls MultiplayerServer/RequestMultiplayerServer
-# Calls API to quanity entered by user and spaced by seconds length also entered by user
-def RequestMultiplayerServer(appchoice, debug=0):
+def GetAllocateConfirm(repeat, pause):
+    
+    #Confirm start of allocations
+    print("Scheduling {} server allocations spaced {} seconds apart".format(repeat, pause))
+    confirm = input("Begin Allocating Servers?  Y for Yes or N for No: ")
+    if confirm.isalpha()==True:
+        confirm = confirm.upper()
+        
+    while (confirm != 'Y' and confirm != 'N'):
+        confirm = input("Begin Allocating Servers?  Y for Yes or N for No: ")
+        if confirm.isalpha():
+            confirm = confirm.upper()
+
+    return confirm
+
+def GetAllocateRepeatAndPause():
 
     #Determine quantity of request server allocations
-    maxrepeat = 100
+    maxrepeat = 100000
 
-    repeat = input("Chose from 1 to 100 allocations: ")
+    repeat = input("Chose from 1 to 100,000 allocations: ")
     if repeat.isnumeric():
         repeat = int(repeat)
         
     while repeat not in range( 1, maxrepeat + 1 ):
-        repeat = input("Chose from 1 to 100 allocations: ")
+        repeat = input("Chose from 1 to 100,000 allocations: ")
         if repeat.isnumeric():
             repeat = int(repeat)
 
@@ -225,32 +242,47 @@ def RequestMultiplayerServer(appchoice, debug=0):
         if pause.isnumeric():
             pause = int(pause)
 
+    return repeat, pause
+
+
+# Allocates MPS servers; calls MultiplayerServer/RequestMultiplayerServer
+# Calls API to quanity entered by user and spaced by seconds length also entered by user
+def AllocateHandler(appchoice, repeat=1, pause=1, debug=0):
+
+    count = 0
+    for count in range(repeat):
+        sessionId = getRandomGUID()
+
+        method = "MultiplayerServer/RequestMultiplayerServer"
+        data = {'BuildId': appchoice['BuildId'], 'SessionId': sessionId, 'PreferredRegions':  [ appchoice['Region'] ] }
+        resp = MPSAPIHandler(method, headers, data, debug)
+
+        if resp['code'] != 200:
+            print(json.dumps(resp, sort_keys=False, indent=4))
+        else:
+            #Print API response per iteration
+            print("Server allocation {} of {} - Waiting {} seconds......".format( count+1, repeat, pause ) )
+
+        time.sleep(pause)
+
+    return True
+
+# Allocates MPS servers; calls MultiplayerServer/RequestMultiplayerServer
+# Calls API to quanity entered by user and spaced by seconds length also entered by user
+def RequestMultiplayerServer(appchoice, debug=0):
+
+    #Confirm repeat and puase
+    repeat, pause = GetAllocateRepeatAndPause()
+
     #Confirm start of allocations
-    print("Scheduling {} server allocations spaced {} seconds apart".format(repeat, pause))
-    confirm = input("Begin Allocating Servers?  Y for Yes or N for No: ")
-    if confirm.isalpha()==True:
-        confirm = confirm.upper()
-        
-    while (confirm != 'Y' and confirm != 'N'):
-        confirm = input("Begin Allocating Servers?  Y for Yes or N for No: ")
-        if confirm.isalpha():
-            confirm = confirm.upper()
+    confirm = GetAllocateConfirm(repeat, pause)    
 
     if confirm == 'N':
         return False
     elif confirm == 'Y':
-        count = 0
-        for count in range(repeat):
-            sessionId = getRandomGUID()
 
-            method = "MultiplayerServer/RequestMultiplayerServer"
-            data = {'BuildId': appchoice['BuildId'], 'SessionId': sessionId, 'PreferredRegions':  [ appchoice['Region'] ] }
-            resp = callAPI(method, headers, data, debug)
+        allocateStatus = AllocateHandler(appchoice, repeat, pause, debug)
 
-            #Print API response per iteration
-            print("Server allocation {} of {} - Waiting {} seconds......".format( count+1, repeat, pause ) )
-
-            time.sleep(pause)
         return True    
     else:
         return False
@@ -269,7 +301,7 @@ def UpdateBuildRegion(appchoice, debug=0):
     method = "MultiplayerServer/UpdateBuildRegion"
     bldregion = { 'Region': appchoice['Region'], 'MaxServers': maxservers, 'StandbyServers': standbyservers }
     data = {'BuildId': appchoice['BuildId'], 'BuildRegion': bldregion }
-    resp = callAPI(method, headers, data, debug)
+    resp = MPSAPIHandler(method, headers, data, debug)
 
     if resp['code'] == 200:
         print(json.dumps(resp, sort_keys=False, indent=4))
@@ -288,7 +320,7 @@ def getRandomGUID():
 
 #Function that issues HTTP Post to PlayFab REST API
 #Optional debug param of 1 prints status code, URL and API response
-def callAPI(method, headers, data, debug = 0):
+def MPSAPIHandler(method, headers, data, debug = 0):
     baseurl = "https://" + title_id + "." + endpoint + method
     responseAPI = requests.post(baseurl, headers = headers, json = data) 
     responseJSON = json.loads(responseAPI.text)
@@ -351,9 +383,9 @@ def GetServerSelection(appSelection):
     sessionIndex = 0
     for session in mps["servers"]:
         if 'SessionId' in session:
-            print("[{}] - {} (Active) ".format(sessionIndex, session['SessionId'] ) )
+            print("[{}] - Session ID: {} ".format(sessionIndex, session['SessionId'] ) )
         else:
-            print("[{}] - {} (Standby)".format(sessionIndex, "N/A" ) )
+            print("[{}] - {} ".format(sessionIndex, "Standby Server (Do Not Select)" ) )
         sessionIndex += 1
     
     if sessionIndex == 0:       # check if there are no active servers
@@ -380,7 +412,7 @@ def authUtility():
 
     method = "Authentication/GetEntityToken"
     data = {}
-    resp = callAPI(method, headers, data)
+    resp = MPSAPIHandler(method, headers, data)
     if resp['code'] == 200:
         headers['X-EntityToken'] = resp['data']['EntityToken']
         return True
@@ -392,46 +424,75 @@ def authUtility():
 def initUtility():
 
     ListBuildSettings(0)
+
     return
+
+def initCommandLineOptions():
+
+    bldChoice = {}
+    status = 0
+    argumentLength = len(sys.argv)
+
+    if argumentLength == 2:
+        print("mpsutility build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
+        exit()
+
+    elif argumentLength == 3:
+
+        bldChoice['BuildId']    = sys.argv[1]
+        bldChoice['Region']     = sys.argv[2]
+        
+        status = AllocateHandler(bldChoice)
+
+    elif argumentLength == 6:
+        
+        bldChoice['BuildId']    = sys.argv[1]
+        bldChoice['Region']     = sys.argv[2]
+        
+        if sys.argv[3].isnumeric():
+            repeat = int(sys.argv[3])
+        else:
+            repeat = 1
+        
+        if sys.argv[4].isnumeric():
+            pause  = int(sys.argv[4])
+        else:
+            pause = 1
+
+        if sys.argv[5].isnumeric():
+            debug  = int(sys.argv[5])
+        else:
+            debug = 1
+
+        status = AllocateHandler(bldChoice, repeat, pause, debug)
+    
+        if status == True:
+            print(str(sys.argv), "successfully executed")
+            exit()
+        else:
+            print(str(sys.argv), "failed")
+            exit()
+    
+    
 
 # Initializes utility configuration; dependency on mpsutility.cfg file
 # Populates secrete key and title id
 def initConfig(debug=0):
 
-    CONFIG = 'mpsutility.cfg'
+    global config 
     mpsutilityconfig = {}
 
     try:
-        fhand=open(CONFIG)
+        fhand=open(config, "r")
     except:
-        print("Required file {} not found".format(CONFIG))
+        print("Required file {} not found".format(config))
         exit()
 
     count = 0
 
-    for line in fhand:
-
-        if 'TITLE_ID' in line:
-            if '#TITLE_ID' in line:
-                continue
-            mylist = line.split("=")
-            mystring = mylist[1].strip()
-            mpsutilityconfig['TITLE_ID'] = mystring
-            if debug == 1:
-                print(line)
-                print("value = {} and len = {}".format(mystring, len(mystring) ) )
-        elif 'SECRET_KEY' in line:
-            if '#SECRET_KEY' in line:
-                continue
-            mylist = line.split("=")
-            mystring = mylist[1].strip()
-            mpsutilityconfig['SECRET_KEY'] = mystring
-            if debug == 1:
-                print(line)
-                print("value = {} and len = {}".format(mystring, len(mystring) ) )
-    
+    jsonContent = fhand.read()
+    mpsutilityconfig = json.loads(jsonContent)
     fhand.close()
-
     return mpsutilityconfig
 
 #############################################################################
@@ -458,19 +519,21 @@ def MainLoop():
     global title_id
 
     cfgResult = initConfig()
-    title_id = cfgResult['TITLE_ID']                    #change title id to titles title id
-    headers['X-SecretKey'] = cfgResult['SECRET_KEY']    #change X-SecretKey to titles secret key
+    title_id = cfgResult['title_id']                    #change title id to titles title id
+    headers['X-SecretKey'] = cfgResult['secret_key']    #change X-SecretKey to titles secret key
 
     authResult = authUtility()
     
     initUtility()
+
+    initCommandLineOptions()
 
     firstRun = True
 
     while authResult == True:
         
         while firstRun == False:
-            choice = input("Enter C to Continue...")
+            choice = input("Enter C to continue...")
             if choice == "c" or choice == "C":
                 break
 
@@ -510,7 +573,7 @@ def MainLoop():
             print(json.dumps(headers, indent=3))
         
         elif choice == 9:   #Exit application
-            print("Existing Application")
+            print("Exiting application")
             quit()
 
         firstRun = False
