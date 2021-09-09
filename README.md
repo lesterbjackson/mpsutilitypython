@@ -19,6 +19,19 @@ Files:       mpsutility.py (main loop & supporting functions), mpsutility.cfg (u
 
 Instructions:(1) Modify mpsutility.cfg, (2) Run mpsutility.py in same folder with mpsutility.cfg
 
+Interactive: The utility can be used interactively at the command line after running mpsutility.py
+
+                    1 - List Build Settings
+                    2 - List Virtual Machines
+                    3 - List Multiplayer Servers      
+                    4 - Get Multiplayer Server Details
+                    5 - Request Multiplayer Server    
+                    6 - Shutdown Multiplayer Server   
+                    7 - Update Build Regions
+                    8 - List Headers
+                    9 - Exit
+                    Chose a utility option:
+
 Tested:      Only0 tested in Windows, concievably should work in Linux and Mac OS X
 
 Copyright:   Lester Jackson (aka Bingfoot)
