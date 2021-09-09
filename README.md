@@ -32,7 +32,11 @@ Interactive: The utility can be used interactively at the command line after run
                     9 - Exit
                     Chose a utility option:
 
-Tested:      Only0 tested in Windows, concievably should work in Linux and Mac OS X
+Examples:
+             python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 20 4 0
+             python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
+
+Tested:      Only tested in Windows, concievably should work in Linux and Mac OS X
 
 Copyright:   Lester Jackson (aka Bingfoot)
 
