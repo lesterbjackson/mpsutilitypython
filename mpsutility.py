@@ -29,6 +29,10 @@
 #              python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 20 4 0
 #              python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
 #
+# Explanation:  The first example scales up 200 servers with 4 seconds between allocations for the build ID
+#               The second example will shutdown all active game servers in the same build + region
+#
+#
 # Tested:      Only0 tested in Windows, concievably should work in Linux and Mac OS X
 # Copyright:   Lester Jackson (aka Bingfoot)
 # License:     Apache License 2.0
@@ -526,6 +530,8 @@ def initCommandLineOptions():
     operation = ""
     bldChoice = {}
     status = 0
+    repeat = 1
+    debug = 0
     argumentLength = len(sys.argv)
 
     #Print command line statements
@@ -536,35 +542,45 @@ def initCommandLineOptions():
     
     #Assign command line variables
     if argumentLength > 1:
-        if sys.argv[1].isalpha():
-            operation = sys.argv[1]
+        if len(sys.argv[1]) > 0:
+            if sys.argv[1].isalpha():
+                operation = sys.argv[1]
 
-    if argumentLength > 4:          #Assign build choice object
-        if sys.argv[2].isprintable():
-            bldChoice['BuildId'] = sys.argv[2]
-        if sys.argv[3].isalpha():
-            bldChoice['Region'] = sys.argv[3]
+        #Assign build choice object
+        if len(sys.argv[2]) > 0:
+            if sys.argv[2].isprintable():
+                bldChoice['BuildId'] = sys.argv[2]
+        if len(sys.argv[3]) > 0:
+            if sys.argv[3].isalpha():
+                bldChoice['Region'] = sys.argv[3]
 
-    if argumentLength == 5: # if shutdown, handle elements 5
-        if sys.argv[4].isnumeric():
-            debug = int(sys.argv[4])
+        if argumentLength > 5: # if allocate, handle elements 6-8
+            if len(sys.argv[4]) > 0:
+                if sys.argv[4].isnumeric():
+                    repeat = int(sys.argv[4])
+            else:
+                repeat = 1
+        
+            if len(sys.argv[5]) > 0:
+                if sys.argv[5].isnumeric():
+                    pause = int(sys.argv[5])
+            else:
+                pause = 1
+        
+        if argumentLength > 6: # if allocate, handle elements 6-8
+            if len(sys.argv[6]) > 0:
+                if sys.argv[6].isnumeric():
+                    debug = int(sys.argv[6])
+            else:
+                debug = 1
+
+    if argumentLength > 4 and argumentLength < 6 :          # if shutdown, handle elements 4
+        if not sys.argv[4]:
+            if sys.argv[4].isnumeric():
+                debug = int(sys.argv[4])
         else:
             debug = 1
     
-    if argumentLength == 7: # if allocate, handle elements 6-8
-        if sys.argv[4].isnumeric():
-            repeat = int(sys.argv[4])
-        else:
-            repeat = 1
-        if sys.argv[5].isnumeric():
-            pause = int(sys.argv[5])
-        else:
-            pause = 1
-        if sys.argv[6].isnumeric():
-            debug = int(sys.argv[6])
-        else:
-            debug = 1
-
     # Handle operaiton request
     if operation == 'allocate':
         status = AllocateHandler(bldChoice, repeat, pause, debug)
@@ -580,6 +596,8 @@ def initCommandLineOptions():
             print(str(sys.argv), "failed")
             exit()
     
+    return
+
 # Initializes utility configuration; dependency on mpsutility.cfg file
 # Populates secrete key and title id
 def initConfig(debug=0):
