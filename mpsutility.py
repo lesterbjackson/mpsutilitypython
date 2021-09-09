@@ -12,6 +12,19 @@
 # Instructions:(1) Modify mpsutility.json, (2) Run mpsutility.py in same folder with mpsutility.json
 #              (3) Alternatively, command line driven execution can be accomplished with...             
 #               mpsutility build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]
+# Interactive: The utility can be used interactively at the command line after running mpsutility.py
+#
+#                    1 - List Build Settings
+#                    2 - List Virtual Machines
+#                    3 - List Multiplayer Servers      
+#                    4 - Get Multiplayer Server Details
+#                    5 - Request Multiplayer Server    
+#                    6 - Shutdown Multiplayer Server   
+#                    7 - Update Build Regions
+#                    8 - List Headers
+#                    9 - Exit
+#                    Chose a utility option:
+
 # Tested:      Only0 tested in Windows, concievably should work in Linux and Mac OS X
 # Copyright:   Lester Jackson (aka Bingfoot)
 # License:     Apache License 2.0
@@ -192,8 +205,7 @@ def ShutdownMultiplayerServer(appchoice, debug=0):
         print("shutting down servers for all regions")
         shutdownStatus = ShutdownMultiplayerServerBulkRegion(appchoice)
     else:
-        shutdownStatus  =  ShutdownMultiplayerServerSingle()
-
+        shutdownStatus  =  ShutdownMultiplayerServerSingle(appchoice)
     return shutdownStatus
 
 def ShutdownMultiplayerServerBulkRegion( appchoice ):
@@ -218,8 +230,12 @@ def ShutdownMultiplayerServerBulkRegion( appchoice ):
 
         #Loop 3 - Iterate each session
         for y in range(sessionListLength):
-            print("Shutting down Build {} ID = {} in {} where session = {}".format(appchoice['BuildName'],
-                appchoice['BuildId'], appchoice['Region'], appchoice['SessionIds'][y] ) )
+            if 'BuildName' in appchoice:
+                print("Shutting down Build {} ID = {} in {} where session = {}".format(appchoice['BuildName'],
+                    appchoice['BuildId'], appchoice['Region'], appchoice['SessionIds'][y] ) )
+            else:
+                print("Shutting down session {} in Region {} for Build ID {}".format(appchoice['SessionIds'][y], 
+                    appchoice['Region'], appchoice['BuildId'] ) )
             
             #Shutdown server with bldDictionary key values
             method = "MultiplayerServer/ShutdownMultiplayerServer"
@@ -444,7 +460,7 @@ def GetAppSelection():
 
 # Lists and captures session ID from user input
 def GetServerSelection(appSelection):
-
+    quitIndex = 0
     sessionIndex = 0
     for session in mps["servers"]:
         if 'SessionId' in session:
@@ -503,43 +519,56 @@ def initUtility():
 
 def initCommandLineOptions():
 
+    operation = ""
     bldChoice = {}
     status = 0
     argumentLength = len(sys.argv)
 
+    #Print command line statements
     if argumentLength == 2:
-        print("mpsutility build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
+        print("mpsutility allocate build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
+        print("mpsutility shutdown build_id region debug[1|0]")
         exit()
+    
+    #Assign command line variables
+    if argumentLength > 1:
+        if sys.argv[1].isalpha():
+            operation = sys.argv[1]
 
-    elif argumentLength == 3:
+    if argumentLength > 4:          #Assign build choice object
+        if sys.argv[2].isprintable():
+            bldChoice['BuildId'] = sys.argv[2]
+        if sys.argv[3].isalpha():
+            bldChoice['Region'] = sys.argv[3]
 
-        bldChoice['BuildId']    = sys.argv[1]
-        bldChoice['Region']     = sys.argv[2]
-        
-        status = AllocateHandler(bldChoice)
-
-    elif argumentLength == 6:
-        
-        bldChoice['BuildId']    = sys.argv[1]
-        bldChoice['Region']     = sys.argv[2]
-        
-        if sys.argv[3].isnumeric():
-            repeat = int(sys.argv[3])
+    if argumentLength == 5: # if shutdown, handle elements 5
+        if sys.argv[4].isnumeric():
+            debug = int(sys.argv[4])
+        else:
+            debug = 1
+    
+    if argumentLength == 7: # if allocate, handle elements 6-8
+        if sys.argv[4].isnumeric():
+            repeat = int(sys.argv[4])
         else:
             repeat = 1
-        
-        if sys.argv[4].isnumeric():
-            pause  = int(sys.argv[4])
+        if sys.argv[5].isnumeric():
+            pause = int(sys.argv[5])
         else:
             pause = 1
-
-        if sys.argv[5].isnumeric():
-            debug  = int(sys.argv[5])
+        if sys.argv[6].isnumeric():
+            debug = int(sys.argv[6])
         else:
             debug = 1
 
+    # Handle operaiton request
+    if operation == 'allocate':
         status = AllocateHandler(bldChoice, repeat, pause, debug)
-    
+    elif operation == 'shutdown':
+        status = ShutdownMultiplayerServerBulkRegion( bldChoice )
+            
+    # Return operation status
+    if argumentLength > 1:
         if status == True:
             print(str(sys.argv), "successfully executed")
             exit()
@@ -547,8 +576,6 @@ def initCommandLineOptions():
             print(str(sys.argv), "failed")
             exit()
     
-    
-
 # Initializes utility configuration; dependency on mpsutility.cfg file
 # Populates secrete key and title id
 def initConfig(debug=0):
@@ -585,6 +612,12 @@ def callMenu():
     print("7 - Update Build Regions")
     print("8 - List Headers")
     print("9 - Exit")
+    print("....................................")
+    print("MPS Utilit can be run interactively with the following command line options")
+    print("     mpsutility allocate build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
+    print("     mpsutility shutdown build_id region debug[1|0]")
+    print()
+
     return
 
 #Defines main console loop and processes user input
@@ -622,7 +655,10 @@ def MainLoop():
         if choice in range(2,8):
             appchoice = GetAppSelection()                
 
-        if choice == 1:     #List Build Settings
+        if choice == 0 :     #List Command Line Arugments
+            print("mpsutility build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
+
+        elif choice == 1:     #List Build Settings
             ListBuildSettings(1)
 
         elif choice == 2:   #List Virtual Machines
