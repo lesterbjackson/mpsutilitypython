@@ -81,6 +81,8 @@ def ListBuildSettings(debug):
                 regionslist.append(y['Region'])
                 
             build['Regions'] = regionslist
+            regLength = len(regionslist)
+            build['RegionsLength']=regLength
             buildlist.append(build)
             mps['builds']=buildlist
         return True
@@ -146,7 +148,10 @@ def GetMultiplayerServerDetails(appchoice, debug=0):
     ListMultiplayerServers(appchoice, debug)
 
     #Get Multiplayer Server Details of a given Session ID
-    GetServerSelection(appchoice)
+    status = GetServerSelection(appchoice)
+    if status == False:
+        return False
+
     if 'SessionId' not in appchoice:
         return False
         
@@ -179,10 +184,54 @@ def GetMultiplayerServerDetails(appchoice, debug=0):
 
 # Shutsdown MPS server ; calls MultiplayerServer/ShutdownMultiplayerServer
 def ShutdownMultiplayerServer(appchoice, debug=0):   
-
     #Cache Multiplayer Servers Results with Session IDs
     ListMultiplayerServers(appchoice, debug)
 
+    #Manual check for mps['Bulk'] == True:
+    if GetBulkConfirm()=='Y':        
+        print("shutting down servers for all regions")
+        shutdownStatus = ShutdownMultiplayerServerBulkRegion(appchoice)
+    else:
+        shutdownStatus  =  ShutdownMultiplayerServerSingle()
+
+    return shutdownStatus
+
+def ShutdownMultiplayerServerBulkRegion( appchoice ):
+    #Loop 1 - Fetch all servers to capture session IDs
+    method = "MultiplayerServer/ListMultiplayerServers"
+    data = {'BuildId': appchoice['BuildId'], 'Region': appchoice['Region'], 'PageSize': 120}
+    resp = MPSAPIHandler(method, headers, data, 0)
+
+    if resp['code'] == 200:
+        sessionList=[]
+        #Loop 2 - Fetch all sessions
+        for x in resp['data']['MultiplayerServerSummaries']:
+            if 'SessionId' in x:
+                sessionList.append(x['SessionId'])
+    else:
+        print(json.dumps(resp, sort_keys=False, indent=4))
+        return False
+
+    sessionListLength = len(sessionList)
+    appchoice['SessionIds'] = sessionList
+    if sessionListLength > 0:
+
+        #Loop 3 - Iterate each session
+        for y in range(sessionListLength):
+            print("Shutting down Build {} ID = {} in {} where session = {}".format(appchoice['BuildName'],
+                appchoice['BuildId'], appchoice['Region'], appchoice['SessionIds'][y] ) )
+            
+            #Shutdown server with bldDictionary key values
+            method = "MultiplayerServer/ShutdownMultiplayerServer"
+            data = {'BuildId': appchoice['BuildId'], 'SessionId': appchoice['SessionIds'][y], 'Region':  appchoice['Region'] }
+            resp = MPSAPIHandler(method, headers, data, 0)
+
+            if resp['code'] != 200:
+                print(json.dumps(resp, sort_keys=False, indent=4))
+                return False
+    return True
+
+def ShutdownMultiplayerServerSingle(appchoice, debug=0):
     #Get Multiplayer Server Details of a given Session ID
     GetServerSelection(appchoice)
     
@@ -198,6 +247,22 @@ def ShutdownMultiplayerServer(appchoice, debug=0):
         return True
     else:
         return False
+
+
+def GetBulkConfirm():
+
+    #Confirm bulk operation
+    confirm = input("Begin bulk operation?  Y for Yes or N for No: ")
+    if confirm.isalpha()==True:
+        confirm = confirm.upper()
+        
+    while (confirm != 'Y' and confirm != 'N'):
+        confirm = input("Begin bulk operation?  Y for Yes or N for No: ")
+        if confirm.isalpha():
+            confirm = confirm.upper()
+
+    return confirm
+
 
 def GetAllocateConfirm(repeat, pause):
     
@@ -387,20 +452,29 @@ def GetServerSelection(appSelection):
         else:
             print("[{}] - {} ".format(sessionIndex, "Standby Server (Do Not Select)" ) )
         sessionIndex += 1
-    
+        quitIndex = sessionIndex
+    print("[{}] - Cancel ".format(quitIndex) )
+
     if sessionIndex == 0:       # check if there are no active servers
         return
     else:
         sessionChoice = input("Chose a session: ")
         if sessionChoice.isnumeric():
             sessionChoice = int(sessionChoice)
-        
-        while sessionChoice not in range(sessionIndex):
+
+        while sessionChoice not in range(sessionIndex+1):
             sessionChoice = input("Chose a session: ")
             if sessionChoice.isnumeric():
                 sessionChoice = int(sessionChoice)
 
     sessionNum = int(sessionChoice)
+
+    #Handle cancel selection
+    if sessionNum == quitIndex:
+        appSelection['SessionId']=False
+        print("Cancel selected...")
+        return appSelection['SessionId']
+
     if sessionNum in range(sessionIndex):
         print( "Session ", mps["servers"][sessionNum]['SessionId'], " Selected")
         appSelection['SessionId'] = mps["servers"][sessionNum]['SessionId']
@@ -564,7 +638,7 @@ def MainLoop():
             RequestMultiplayerServer(appchoice, 1)
 
         elif choice == 6:   #Shutdown Multiplayer Server
-            ShutdownMultiplayerServer(appchoice, 1)
+            ShutdownMultiplayerServer(appchoice)
 
         elif choice == 7:   #Update Build Region
             UpdateBuildRegion(appchoice, 1)
