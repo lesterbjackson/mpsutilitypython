@@ -25,6 +25,10 @@
 #                    9 - Exit
 #                    Chose a utility option:
 #
+# Examples:    
+#              python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 20 4 0
+#              python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
+#
 # Tested:      Only0 tested in Windows, concievably should work in Linux and Mac OS X
 # Copyright:   Lester Jackson (aka Bingfoot)
 # License:     Apache License 2.0
