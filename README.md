@@ -32,13 +32,13 @@ Interactive: The utility can be used interactively at the command line after run
                     9 - Exit
                     Chose a utility option:
 
-Examples:    EG.#1 - python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 2 0
-             EG #2 - python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
+Examples:    
+EG.#1 - python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 2 0
+EG #2 - python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
 
-Explanation: Example #1 issues 200 batch requests with 10 requests per batch with 3 seconds
-              between allocations for a given build and region producing a total of 2,000 game server allocations
-              NEW: The second to last param is a rate simulator, options are = = OFF, 1=LOW, 2=MED and 3=HIG
-                   The higher the rate simulator #, the steeper the player demand ramp up curve
+Explanation: 
+
+Example #1 issues 200 batch requests with 10 requests per batch with 3 seconds between allocations for a given build and region producing a total of 2,000 game server allocations.  The second to last param is a rate simulator, options are = = OFF, 1=LOW, 2=MED and 3=HIGH.  The higher the rate simulator #, the steeper the player demand ramp up curve
 
 Limits:      The max limits are 100,000 batch requests and 100 request per batch 
 
