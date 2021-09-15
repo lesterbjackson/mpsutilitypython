@@ -25,11 +25,13 @@
 #                    9 - Exit
 #                    Choose a utility option:
 #
-# Examples:    EG.#1 - python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 0
+# Examples:    EG.#1 - python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 2 0
 #              EG #2 - python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
 #
 # Explanation: Example #1 issues 200 batch requests with 10 requests per batch with 3 seconds
 #              between allocations for a given build and region producing a total of 2,000 game server allocations
+#              NEW: The second to last param is a rate simulator, options are = = OFF, 1=LOW, 2=MED and 3=HIG
+#                   The higher the rate simulator #, the steeper the player demand ramp up curve
 #
 #              Example #2 will shutdown all active game servers for a given build & region
 #
@@ -67,6 +69,7 @@ import uuid
 mps = {}
 appchoice = {}
 config = 'mpsutility.json'
+rampSimulate = 2
 
 #change endpoint for testing or unique vertical
 endpoint = "playfabapi.com/" 
@@ -350,9 +353,13 @@ def GetAllocateRepeatAndPause():
 # Calls API to quantity entered by user and spaced by seconds length also entered by user
 def AllocateHandler(appchoice, repeat=1, repeatbatch=1, pause=1, debug=0):
    
-    countIn = 0
-    countOut = repeatbatch
+    global rampSimulate
+
     for x in range(repeat):
+        # Increment player demand if rate simulation = True
+        if rampSimulate > 0:
+            repeatbatch = repeatbatch + int(x^rampSimulate)
+
         for y in range(repeatbatch):
             sessionId = getRandomGUID()
 
@@ -363,7 +370,6 @@ def AllocateHandler(appchoice, repeat=1, repeatbatch=1, pause=1, debug=0):
             if resp['code'] != 200:
                 print(json.dumps(resp, sort_keys=False, indent=4))
             else:
-                #Print API response per iteration
                 print("Allocation {}.{} of batch {} : Region = {}, SessionID = {}".format( x+1, y+1, x+1, appchoice['Region'], sessionId))
         
         print("Next allocation in {} seconds ....".format( pause ))
@@ -374,12 +380,17 @@ def AllocateHandler(appchoice, repeat=1, repeatbatch=1, pause=1, debug=0):
 # Allocates MPS servers; calls MultiplayerServer/RequestMultiplayerServer
 # Calls API to quantity entered by user and spaced by seconds length also entered by user
 def RequestMultiplayerServer(appchoice, debug=0):
+    
+    global rampSimulate
 
     #Confirm repeat and pause
     repeat, repeatbatch, repeatpause = GetAllocateRepeatAndPause()
 
+    #Confirm ramp simulation
+    rampSimulate = GetRampSelection()
+
     #Confirm start of allocations
-    confirm = GetAllocateConfirm(repeat, repeatbatch, repeatpause)    
+    confirm = GetAllocateConfirm(repeat, repeatbatch, repeatpause)
 
     if confirm == 'N':
         return False
@@ -501,6 +512,21 @@ def GetAppSelection():
 
     return appselection
 
+# User input for ramp simulation
+def GetRampSelection():
+
+    rampChoice = input("Choose a rampup rate between 0 and 3: ")
+    if rampChoice.isnumeric():
+        rampChoice = int(rampChoice)
+    
+    while rampChoice not in range(0,4):
+        rampChoice = input("Choose a ramp rate between 0 and 3: ")
+        if rampChoice.isnumeric():
+            rampChoice = int(rampChoice)
+
+    return rampChoice
+
+
 # Lists and captures session ID from user input
 def GetSessionSelection(appSelection):
     quitIndex = 0
@@ -570,6 +596,8 @@ def initCommandLineOptions():
     debug = 0
     argumentLength = len(sys.argv)
 
+    global rampSimulate
+
     #Print command line statements
     if argumentLength == 2:
         print("mpsutility allocate build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
@@ -608,16 +636,21 @@ def initCommandLineOptions():
                     pause = int(sys.argv[6])
                 else:
                     pause = 1                
-        
-        if argumentLength > 6: # if allocate, handle elements 6-8
+
             if len(sys.argv[7]) > 0:
                 if sys.argv[7].isnumeric():
-                    debug = int(sys.argv[7])
+                    rampSimulate = int(sys.argv[7])
+                else:
+                    rampSimulate = 0
+
+        if argumentLength > 7: # if allocate, handle elements 6-8
+            if len(sys.argv[8]) > 0:
+                if sys.argv[8].isnumeric():
+                    debug = int(sys.argv[8])
             else:
                 debug = 1
 
-    if argumentLength > 3 and argumentLength < 6 :          # if shutdown, handle elements 4
-        #if not sys.argv[4]:
+    if argumentLength > 3 and argumentLength < 6 :          # if shutdown,
         if argumentLength == 5:
             if sys.argv[4].isnumeric():
                 debug = int(sys.argv[4])
@@ -736,7 +769,7 @@ def MainLoop():
             GetMultiplayerServerDetails(appchoice, 0)
 
         elif choice == 5:   #Request Multiplayer Server
-            RequestMultiplayerServer(appchoice, 1)
+            RequestMultiplayerServer(appchoice, 0)
 
         elif choice == 6:   #Shutdown Multiplayer Server
             ShutdownMultiplayerServer(appchoice)
