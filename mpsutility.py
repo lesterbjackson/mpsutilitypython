@@ -30,7 +30,7 @@
 #
 # Explanation: Example #1 issues 200 batch requests with 10 requests per batch with 3 seconds
 #              between allocations for a given build and region producing a total of 2,000 game server allocations
-#              NEW: The second to last param is a rate simulator, options are = = OFF, 1=LOW, 2=MED and 3=HIG
+#              NEW: The second to last param is a rate simulator, options are = = OFF, 1=LOW, 2=MED and 3=HIGH
 #                   The higher the rate simulator #, the steeper the player demand ramp up curve
 #
 #              Example #2 will shutdown all active game servers for a given build & region
