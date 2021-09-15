@@ -2,11 +2,11 @@
 # Author:      Lester Jackson
 # GitHub:      https://github.com/lesterjackson
 # Title:       MPSUtilityPython
-# Published:   Inital September 6, 2021
+# Published:   Initial September 6, 2021
 # Description: A menu driven console utility coded in Python for PlayFab Multiplayer Server developers.  
 #              The utility provides three functions: (1) Allocates game servers, (2) Configures game server limits
 #              and (3) reports hosted status for game server builds, virtual machines and sessions
-# Support:     Implemented wtih Python 3.9.5
+# Support:     Implemented with Python 3.9.5
 # Background:  The utility calls and returns PlayFab Multiplayer Server REST API responses
 # Files:       mpsutility.py (utility handlers & main loop), mpsutility.json (utility configuration)
 # Instructions:(1) Modify mpsutility.json, (2) Run mpsutility.py in same folder with mpsutility.json
@@ -23,17 +23,19 @@
 #                    7 - Update Build Regions
 #                    8 - List Headers
 #                    9 - Exit
-#                    Chose a utility option:
+#                    Choose a utility option:
 #
-# Examples:    
-#              python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 20 4 0
-#              python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
+# Examples:    EG.#1 - python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 0
+#              EG #2 - python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
 #
-# Explanation:  The first example scales up 200 servers with 4 seconds between allocations for the build ID
-#               The second example will shutdown all active game servers in the same build + region
+# Explanation: Example #1 issues 200 batch requests with 10 requests per batch with 3 seconds
+#              between allocations for a given build and region producing a total of 2,000 game server allocations
 #
+#              Example #2 will shutdown all active game servers for a given build & region
 #
-# Tested:      Only0 tested in Windows, concievably should work in Linux and Mac OS X
+# Limits:      The max limits are 100,000 batch requests and 100 request per batch 
+#
+# Tested:      Only tested in Windows, concievably should work in Linux and Mac OS X
 # Copyright:   Lester Jackson (aka Bingfoot)
 # License:     Apache License 2.0
 # Resources:   https://docs.microsoft.com/en-us/rest/api/playfab/multiplayer/multiplayer-server
@@ -43,7 +45,6 @@
 # Credits:     Special thanks to friends, colleages and family...
 #              - Dimitris Gkantsios https://github.com/dgkanatsios
 #              - Ardon Bailey https://github.com/waystilos
-#              - Professor Humaira Jackson for bearing with me in my first GitHub project during 2021 Labor Day weekend
 #              - Coursera Python 3 Programming https://www.coursera.org/specializations/python-3-programming
 #
 
@@ -118,7 +119,6 @@ def ListVirtualMachines(appchoice, debug=0):
     resp = MPSAPIHandler(method, headers, data, debug)
 
     if resp['code'] == 200:
-        #print(method, " Success")
         vmlist=[]
         for x in resp['data']['VirtualMachines']:
             vm = {}
@@ -151,7 +151,6 @@ def ListMultiplayerServers(appchoice, debug=0):
             server['State']    = x['State']
             server['ConnectedPlayers'] = x['ConnectedPlayers']
             server['LastStateTransitionTime'] = x['LastStateTransitionTime']
-            server['ServerId'] = x['ServerId']
 
             if 'SessionId' in x:
                 server['SessionId'] = x['SessionId']
@@ -169,7 +168,7 @@ def GetMultiplayerServerDetails(appchoice, debug=0):
     ListMultiplayerServers(appchoice, debug)
 
     #Get Multiplayer Server Details of a given Session ID
-    status = GetServerSelection(appchoice)
+    status = GetSessionSelection(appchoice)
     if status == False:
         return False
 
@@ -194,7 +193,7 @@ def GetMultiplayerServerDetails(appchoice, debug=0):
         serverDetails['BuildId']           = resp['data']['BuildId']
         serverDetails['Ports']             = resp['data']['Ports']
         serverDetails['ConnectedPlayers']  = resp['data']['ConnectedPlayers']
-            
+                   
         mps['serverdetails'] = serverDetails
         
         print(json.dumps(mps['serverdetails'], sort_keys=False, indent=4))
@@ -216,7 +215,7 @@ def ShutdownMultiplayerServer(appchoice, debug=0):
         shutdownStatus  =  ShutdownMultiplayerServerSingle(appchoice)
     return shutdownStatus
 
-def ShutdownMultiplayerServerBulkRegion( appchoice ):
+def ShutdownMultiplayerServerBulkRegion( appchoice , debug=0):
     #Loop 1 - Fetch all servers to capture session IDs
     method = "MultiplayerServer/ListMultiplayerServers"
     data = {'BuildId': appchoice['BuildId'], 'Region': appchoice['Region'], 'PageSize': 120}
@@ -239,7 +238,7 @@ def ShutdownMultiplayerServerBulkRegion( appchoice ):
         #Loop 3 - Iterate each session
         for y in range(sessionListLength):
             if 'BuildName' in appchoice:
-                print("Shutting down Build {} ID = {} in {} where session = {}".format(appchoice['BuildName'],
+                print("Shutting down Build {} ({}) in {} with session = {}".format(appchoice['BuildName'],
                     appchoice['BuildId'], appchoice['Region'], appchoice['SessionIds'][y] ) )
             else:
                 print("Shutting down session {} in Region {} for Build ID {}".format(appchoice['SessionIds'][y], 
@@ -248,16 +247,17 @@ def ShutdownMultiplayerServerBulkRegion( appchoice ):
             #Shutdown server with bldDictionary key values
             method = "MultiplayerServer/ShutdownMultiplayerServer"
             data = {'BuildId': appchoice['BuildId'], 'SessionId': appchoice['SessionIds'][y], 'Region':  appchoice['Region'] }
-            resp = MPSAPIHandler(method, headers, data, 0)
+            resp = MPSAPIHandler(method, headers, data, debug)
 
             if resp['code'] != 200:
                 print(json.dumps(resp, sort_keys=False, indent=4))
                 return False
+    
     return True
 
 def ShutdownMultiplayerServerSingle(appchoice, debug=0):
     #Get Multiplayer Server Details of a given Session ID
-    GetServerSelection(appchoice)
+    GetSessionSelection(appchoice)
     
     if 'SessionId' not in appchoice:    #Fail if SessionID not populated
         return False
@@ -288,10 +288,10 @@ def GetBulkConfirm():
     return confirm
 
 
-def GetAllocateConfirm(repeat, pause):
+def GetAllocateConfirm(repeat, repeatbatch, pause):
     
     #Confirm start of allocations
-    print("Scheduling {} server allocations spaced {} seconds apart".format(repeat, pause))
+    print("Scheduling {} batches of {} server allocations spaced {} seconds apart".format(repeat, repeatbatch, pause))
     confirm = input("Begin Allocating Servers?  Y for Yes or N for No: ")
     if confirm.isalpha()==True:
         confirm = confirm.upper()
@@ -308,69 +308,84 @@ def GetAllocateRepeatAndPause():
     #Determine quantity of request server allocations
     maxrepeat = 100000
 
-    repeat = input("Chose from 1 to 100,000 allocations: ")
+    repeat = input("Choose from 1 to 100,000 allocations: ")
     if repeat.isnumeric():
         repeat = int(repeat)
         
     while repeat not in range( 1, maxrepeat + 1 ):
-        repeat = input("Chose from 1 to 100,000 allocations: ")
+        repeat = input("Choose from 1 to 100,000 allocations: ")
         if repeat.isnumeric():
             repeat = int(repeat)
+
+    #Determine quantity of requests per batch
+    maxrepeatbatch = 100
+
+    repeatbatch = input("Choose from 1 to 100 requests per batch: ")
+    if repeatbatch.isnumeric():
+        repeatbatch = int(repeatbatch)
+        
+    while repeatbatch not in range( 1, maxrepeatbatch + 1 ):
+        repeatbatch = input("Choose from 1 to 100 requests per batch: ")
+        if repeatbatch.isnumeric():
+            repeatbatch = int(repeatbatch)
 
     #Determine quantity of seconds between server allocations
 
     minpause = 1
     maxpause = 600
 
-    pause = input("Chose from 1 to 600 seconds between allocations: ")
+    pause = input("Choose from 1 to 600 seconds between allocations: ")
     if pause.isnumeric():
         pause = int(pause)
         
     while pause not in range( minpause, maxpause + 1 ):
-        pause = input("Chose from 1 to 600 seconds between allocations: ")
+        pause = input("Choose from 1 to 600 seconds between allocations: ")
         if pause.isnumeric():
             pause = int(pause)
 
-    return repeat, pause
+    return repeat, repeatbatch, pause
 
 
 # Allocates MPS servers; calls MultiplayerServer/RequestMultiplayerServer
-# Calls API to quanity entered by user and spaced by seconds length also entered by user
-def AllocateHandler(appchoice, repeat=1, pause=1, debug=0):
+# Calls API to quantity entered by user and spaced by seconds length also entered by user
+def AllocateHandler(appchoice, repeat=1, repeatbatch=1, pause=1, debug=0):
+   
+    countIn = 0
+    countOut = repeatbatch
+    for x in range(repeat):
+        for y in range(repeatbatch):
+            sessionId = getRandomGUID()
 
-    count = 0
-    for count in range(repeat):
-        sessionId = getRandomGUID()
+            method = "MultiplayerServer/RequestMultiplayerServer"
+            data = {'BuildId': appchoice['BuildId'], 'SessionId': sessionId, 'PreferredRegions':  [ appchoice['Region'] ] }
+            resp = MPSAPIHandler(method, headers, data, debug)
 
-        method = "MultiplayerServer/RequestMultiplayerServer"
-        data = {'BuildId': appchoice['BuildId'], 'SessionId': sessionId, 'PreferredRegions':  [ appchoice['Region'] ] }
-        resp = MPSAPIHandler(method, headers, data, debug)
-
-        if resp['code'] != 200:
-            print(json.dumps(resp, sort_keys=False, indent=4))
-        else:
-            #Print API response per iteration
-            print("Server allocation {} of {} - Waiting {} seconds......".format( count+1, repeat, pause ) )
-
+            if resp['code'] != 200:
+                print(json.dumps(resp, sort_keys=False, indent=4))
+            else:
+                #Print API response per iteration
+                print("Allocation {}.{} of batch {} : Region = {}, SessionID = {}".format( x+1, y+1, x+1, appchoice['Region'], sessionId))
+        
+        print("Next allocation in {} seconds ....".format( pause ))
         time.sleep(pause)
 
     return True
 
 # Allocates MPS servers; calls MultiplayerServer/RequestMultiplayerServer
-# Calls API to quanity entered by user and spaced by seconds length also entered by user
+# Calls API to quantity entered by user and spaced by seconds length also entered by user
 def RequestMultiplayerServer(appchoice, debug=0):
 
-    #Confirm repeat and puase
-    repeat, pause = GetAllocateRepeatAndPause()
+    #Confirm repeat and pause
+    repeat, repeatbatch, repeatpause = GetAllocateRepeatAndPause()
 
     #Confirm start of allocations
-    confirm = GetAllocateConfirm(repeat, pause)    
+    confirm = GetAllocateConfirm(repeat, repeatbatch, repeatpause)    
 
     if confirm == 'N':
         return False
     elif confirm == 'Y':
 
-        allocateStatus = AllocateHandler(appchoice, repeat, pause, debug)
+        allocateStatus = AllocateHandler(appchoice, repeat, repeatbatch, repeatpause, debug=0)
 
         return True    
     else:
@@ -379,13 +394,14 @@ def RequestMultiplayerServer(appchoice, debug=0):
 # Updates MPS build server limits (max & standby); calls MultiplayerServer/UpdateBuildRegion
 def UpdateBuildRegion(appchoice, debug=0):
 
-    maxservers = int(input("Enter max servers value between 0 to 100: "))
-    while maxservers not in range(0,100):
-        maxservers = int(input("Enter max servers value between 0 to 100: "))
+    maxlimit = 1000
+    maxservers = int(input("Enter max servers value between 0 to {}: ".format(maxlimit)))
+    while maxservers not in range(0,maxlimit):
+        maxservers = int(input("Enter max servers value between 0 to {}: ".format(maxlimit)))
 
-    standbyservers = int(input("Enter standby servers value between 0 to 100: "))
-    while standbyservers not in range(0,100):
-        standbyservers = int(input("Enter standby servers value between 0 to 100: "))
+    standbyservers = int(input("Enter standby servers value between 0 to {}: ".format(maxlimit)))
+    while standbyservers not in range(0,maxlimit):
+        standbyservers = int(input("Enter standby servers value between 0 to  {}: ".format(maxlimit)))
 
     method = "MultiplayerServer/UpdateBuildRegion"
     bldregion = { 'Region': appchoice['Region'], 'MaxServers': maxservers, 'StandbyServers': standbyservers }
@@ -406,6 +422,25 @@ def UpdateBuildRegion(appchoice, debug=0):
 def getRandomGUID():
     randomSession =  uuid.uuid4()
     return str(randomSession)
+
+def getRandomGUIDEx(header, num):
+    start = header
+    padding = str(num)
+    
+    end = padding.zfill(8-len(header))
+    full = start + end
+
+    x4 =  uuid.uuid4()
+
+    index = 0
+    x5 = str(x4)
+
+    for x in x5:
+        if index > 7:
+            full += x
+        index += 1
+
+    return full    
 
 #Function that issues HTTP Post to PlayFab REST API
 #Optional debug param of 1 prints status code, URL and API response
@@ -430,12 +465,12 @@ def GetAppSelection():
         print("[{}] - {} ({})".format(bldIndex, bld['BuildName'], bld['BuildId']))
         bldIndex += 1
     
-    bldChoice = input("Chose a build: ")
+    bldChoice = input("Choose a build: ")
     if bldChoice.isnumeric():
         bldChoice = int(bldChoice)
     
     while bldChoice not in range(bldIndex):
-        bldChoice = input("Chose a build: ")
+        bldChoice = input("Choose a build: ")
         if bldChoice.isnumeric():
             bldChoice = int(bldChoice)
 
@@ -450,12 +485,12 @@ def GetAppSelection():
         print("[{}] - {} ".format(regIndex, mps["builds"][bldNum]['Regions'][regIndex]))
         regIndex += 1
     
-    regionChoice = input("Chose a region: ")
+    regionChoice = input("Choose a region: ")
     if regionChoice.isnumeric():
         regionChoice = int(regionChoice)
     
     while regionChoice not in range(regIndex):
-        regionChoice = input("Chose a region: ")
+        regionChoice = input("Choose a region: ")
         if regionChoice.isnumeric():
             regionChoice = int(bldChoice)
 
@@ -467,12 +502,12 @@ def GetAppSelection():
     return appselection
 
 # Lists and captures session ID from user input
-def GetServerSelection(appSelection):
+def GetSessionSelection(appSelection):
     quitIndex = 0
     sessionIndex = 0
     for session in mps["servers"]:
         if 'SessionId' in session:
-            print("[{}] - Session ID: {} ".format(sessionIndex, session['SessionId'] ) )
+            print("[{}] - Session ID: {} - ({}) ".format(sessionIndex, session['SessionId'] ,session['LastStateTransitionTime'] ) )
         else:
             print("[{}] - {} ".format(sessionIndex, "Standby Server (Do Not Select)" ) )
         sessionIndex += 1
@@ -482,12 +517,12 @@ def GetServerSelection(appSelection):
     if sessionIndex == 0:       # check if there are no active servers
         return
     else:
-        sessionChoice = input("Chose a session: ")
+        sessionChoice = input("Choose a session: ")
         if sessionChoice.isnumeric():
             sessionChoice = int(sessionChoice)
 
         while sessionChoice not in range(sessionIndex+1):
-            sessionChoice = input("Chose a session: ")
+            sessionChoice = input("Choose a session: ")
             if sessionChoice.isnumeric():
                 sessionChoice = int(sessionChoice)
 
@@ -531,6 +566,7 @@ def initCommandLineOptions():
     bldChoice = {}
     status = 0
     repeat = 1
+    repeatbatch = 1
     debug = 0
     argumentLength = len(sys.argv)
 
@@ -551,7 +587,7 @@ def initCommandLineOptions():
             if sys.argv[2].isprintable():
                 bldChoice['BuildId'] = sys.argv[2]
         if len(sys.argv[3]) > 0:
-            if sys.argv[3].isalpha():
+            if sys.argv[3].isprintable():
                 bldChoice['Region'] = sys.argv[3]
 
         if argumentLength > 5: # if allocate, handle elements 6-8
@@ -563,19 +599,26 @@ def initCommandLineOptions():
         
             if len(sys.argv[5]) > 0:
                 if sys.argv[5].isnumeric():
-                    pause = int(sys.argv[5])
+                    repeatbatch = int(sys.argv[5])
             else:
-                pause = 1
-        
-        if argumentLength > 6: # if allocate, handle elements 6-8
+                repeatbatch = 1
+
             if len(sys.argv[6]) > 0:
                 if sys.argv[6].isnumeric():
-                    debug = int(sys.argv[6])
+                    pause = int(sys.argv[6])
+                else:
+                    pause = 1                
+        
+        if argumentLength > 6: # if allocate, handle elements 6-8
+            if len(sys.argv[7]) > 0:
+                if sys.argv[7].isnumeric():
+                    debug = int(sys.argv[7])
             else:
                 debug = 1
 
-    if argumentLength > 4 and argumentLength < 6 :          # if shutdown, handle elements 4
-        if not sys.argv[4]:
+    if argumentLength > 3 and argumentLength < 6 :          # if shutdown, handle elements 4
+        #if not sys.argv[4]:
+        if argumentLength == 5:
             if sys.argv[4].isnumeric():
                 debug = int(sys.argv[4])
         else:
@@ -583,9 +626,9 @@ def initCommandLineOptions():
     
     # Handle operaiton request
     if operation == 'allocate':
-        status = AllocateHandler(bldChoice, repeat, pause, debug)
+        status = AllocateHandler(bldChoice, repeat, repeatbatch, pause, debug)
     elif operation == 'shutdown':
-        status = ShutdownMultiplayerServerBulkRegion( bldChoice )
+        status = ShutdownMultiplayerServerBulkRegion( bldChoice, debug )
             
     # Return operation status
     if argumentLength > 1:
@@ -636,7 +679,7 @@ def callMenu():
     print("9 - Exit")
     print("....................................")
     print("MPS Utilit can be run interactively with the following command line options")
-    print("     mpsutility allocate build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
+    print("     mpsutility allocate build_id region repeatCount[1:100000] batchSize[1:100] pauseCount[1:600] debug[1|0]")
     print("     mpsutility shutdown build_id region debug[1|0]")
     print()
 
@@ -670,14 +713,14 @@ def MainLoop():
 
         choice = 0
         while choice not in range(1,10):
-            choice = input("Chose a utility option: ")
+            choice = input("Choose a utility option: ")
             if choice.isnumeric():
                 choice = int(choice)
 
         if choice in range(2,8):
             appchoice = GetAppSelection()                
 
-        if choice == 0 :     #List Command Line Arugments
+        if choice == 0 :     #List Command Line Arguments
             print("mpsutility build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
 
         elif choice == 1:     #List Build Settings
@@ -690,7 +733,7 @@ def MainLoop():
             ListMultiplayerServers(appchoice, 1)
 
         elif choice == 4:   #Get Multiplayer Server Details
-            GetMultiplayerServerDetails(appchoice, 1)
+            GetMultiplayerServerDetails(appchoice, 0)
 
         elif choice == 5:   #Request Multiplayer Server
             RequestMultiplayerServer(appchoice, 1)
