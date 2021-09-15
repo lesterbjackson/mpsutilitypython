@@ -32,11 +32,14 @@ Interactive: The utility can be used interactively at the command line after run
                     9 - Exit
                     Chose a utility option:
 
-Examples #1: python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 20 4 0
-Explanation #1: The first example scales up 200 servers with 4 seconds between allocations for the build ID
+Examples:    EG.#1 - python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 0
+             EG #2 - python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
 
-Examples #2: python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1
-Explanation #2: The second example will shutdown all active game servers in the same build + region
+Explanation: Example #1 issues 200 batch requests with 10 requests per batch with 3 seconds
+             between allocations for a given build and region producing a total of 2,000 game server allocations
+             Example #2 will shutdown all active game servers for a given build & region
+
+Limits:      The max limits are 100,000 batch requests and 100 request per batch 
 
 Tested:      Only tested in Windows, concievably should work in Linux and Mac OS X
 
