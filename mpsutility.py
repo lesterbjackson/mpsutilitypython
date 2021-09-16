@@ -30,7 +30,7 @@
 #
 # Explanation: Example #1 issues 200 batch requests with 10 requests per batch with 3 seconds
 #              between allocations for a given build and region producing a total of 2,000 game server allocations
-#              NEW: The second to last param is a rate simulator, options are = = OFF, 1=LOW, 2=MED and 3=HIGH
+#              NEW: The second to last param is a rate simulator, options are = = OFF, 1=LOW, 2=MED and 3=HIG
 #                   The higher the rate simulator #, the steeper the player demand ramp up curve
 #
 #              Example #2 will shutdown all active game servers for a given build & region
@@ -405,7 +405,7 @@ def RequestMultiplayerServer(appchoice, debug=0):
 # Updates MPS build server limits (max & standby); calls MultiplayerServer/UpdateBuildRegion
 def UpdateBuildRegion(appchoice, debug=0):
 
-    maxlimit = 1000
+    maxlimit = 100000
     maxservers = int(input("Enter max servers value between 0 to {}: ".format(maxlimit)))
     while maxservers not in range(0,maxlimit):
         maxservers = int(input("Enter max servers value between 0 to {}: ".format(maxlimit)))
@@ -424,6 +424,23 @@ def UpdateBuildRegion(appchoice, debug=0):
         return True
     else:
         return False
+
+# Updates MPS build server limits (max & standby); calls MultiplayerServer/UpdateBuildRegion
+def UpdateBuildRegionBulk(appchoice, debug=0):
+
+    maxservers = appchoice['Max']
+    standbyservers = appchoice['Standby']
+
+    method = "MultiplayerServer/UpdateBuildRegion"
+    bldregion = { 'Region': appchoice['Region'], 'MaxServers': maxservers, 'StandbyServers': standbyservers }
+    data = {'BuildId': appchoice['BuildId'], 'BuildRegion': bldregion }
+    resp = MPSAPIHandler(method, headers, data, debug)
+
+    if resp['code'] == 200:
+        print(json.dumps(resp, sort_keys=False, indent=4))
+        return True
+    else:
+        return False        
 
 #############################################################################
 # MPS Utility Helpers
@@ -598,71 +615,104 @@ def initCommandLineOptions():
 
     global rampSimulate
 
-    #Print command line statements
-    if argumentLength == 2:
-        print("mpsutility allocate build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
-        print("mpsutility shutdown build_id region debug[1|0]")
-        exit()
-    
     #Assign command line variables
     if argumentLength > 1:
         if len(sys.argv[1]) > 0:
-            if sys.argv[1].isalpha():
+            if sys.argv[1].isascii():
                 operation = sys.argv[1]
 
-        #Assign build choice object
-        if len(sys.argv[2]) > 0:
-            if sys.argv[2].isprintable():
-                bldChoice['BuildId'] = sys.argv[2]
-        if len(sys.argv[3]) > 0:
-            if sys.argv[3].isprintable():
-                bldChoice['Region'] = sys.argv[3]
+            if "help" in operation:
+                callHelpInstructions()
+                exit()
 
-        if argumentLength > 5: # if allocate, handle elements 6-8
-            if len(sys.argv[4]) > 0:
-                if sys.argv[4].isnumeric():
-                    repeat = int(sys.argv[4])
-            else:
-                repeat = 1
+            #process arguments dependent on operation
+            if operation == "allocate" or operation == "scale" or operation == "shutdown":
+                
+                #Assign build choice object
+                if len(sys.argv[2]) > 0:
+                    if sys.argv[2].isprintable():
+                        bldChoice['BuildId'] = sys.argv[2]
+                if len(sys.argv[3]) > 0:
+                    if sys.argv[3].isprintable():
+                        bldChoice['Region'] = sys.argv[3]
+
+                bldChoice['Operation'] = operation
+
+            #######################################################
+            if operation == "allocate":
+                if len(sys.argv[4]) > 0:
+                    if sys.argv[4].isnumeric():
+                        repeat = int(sys.argv[4])
+                    else:
+                        repeat = 1
         
-            if len(sys.argv[5]) > 0:
-                if sys.argv[5].isnumeric():
-                    repeatbatch = int(sys.argv[5])
-            else:
-                repeatbatch = 1
+                if len(sys.argv[5]) > 0:
+                    if sys.argv[5].isnumeric():
+                        repeatbatch = int(sys.argv[5])
+                    else:
+                        repeatbatch = 1
 
-            if len(sys.argv[6]) > 0:
-                if sys.argv[6].isnumeric():
-                    pause = int(sys.argv[6])
+                if len(sys.argv[6]) > 0:
+                    if sys.argv[6].isnumeric():
+                        pause = int(sys.argv[6])
+                    else:
+                        pause = 1                
+
+                if len(sys.argv[7]) > 0:
+                    if sys.argv[7].isnumeric():
+                        rampSimulate = int(sys.argv[7])
+                    else:
+                        rampSimulate = 0
+                
+                if len(sys.argv[8]) > 0:
+                    if sys.argv[8].isnumeric():
+                        debug = int(sys.argv[8])
                 else:
-                    pause = 1                
+                    debug = 1
 
-            if len(sys.argv[7]) > 0:
-                if sys.argv[7].isnumeric():
-                    rampSimulate = int(sys.argv[7])
+                bldChoice['Repeat'] = repeat
+                bldChoice['RepeatBatch'] = repeatbatch
+                bldChoice['Pause'] = pause
+                bldChoice['RampSimulate'] = rampSimulate
+                bldChoice['Debug'] = debug
+                status = AllocateHandler (bldChoice, repeat, repeatbatch, pause, debug )
+
+            #######################################################
+            if operation == "scale":
+
+                if operation == "scale":
+                    if sys.argv[4].isnumeric():
+                        standby = int(sys.argv[4])
+                    else:
+                        standby = 0
+
+                if len(sys.argv[5]) > 0:
+                    if sys.argv[5].isnumeric():
+                        max = int(sys.argv[5])
+                    else:
+                        max = 0
+                    
+                if len(sys.argv[6]) > 0:
+                    if sys.argv[6].isnumeric():
+                        debug = int(sys.argv[6])
+                    else:
+                        debug = 1
+
+                bldChoice['Standby'] = standby  
+                bldChoice['Max'] = max
+                bldChoice['Debug'] = debug
+                status = UpdateBuildRegionBulk( bldChoice, debug )
+
+            #######################################################
+            if operation == "shutdown":
+                if sys.argv[4].isnumeric():
+                    debug = int(sys.argv[4])
                 else:
-                    rampSimulate = 0
+                    debug = 1
 
-        if argumentLength > 7: # if allocate, handle elements 6-8
-            if len(sys.argv[8]) > 0:
-                if sys.argv[8].isnumeric():
-                    debug = int(sys.argv[8])
-            else:
-                debug = 1
+                bldChoice['Debug'] = debug
+                status = ShutdownMultiplayerServerBulkRegion( bldChoice, debug )
 
-    if argumentLength > 3 and argumentLength < 6 :          # if shutdown,
-        if argumentLength == 5:
-            if sys.argv[4].isnumeric():
-                debug = int(sys.argv[4])
-        else:
-            debug = 1
-    
-    # Handle operaiton request
-    if operation == 'allocate':
-        status = AllocateHandler(bldChoice, repeat, repeatbatch, pause, debug)
-    elif operation == 'shutdown':
-        status = ShutdownMultiplayerServerBulkRegion( bldChoice, debug )
-            
     # Return operation status
     if argumentLength > 1:
         if status == True:
@@ -673,6 +723,7 @@ def initCommandLineOptions():
             exit()
     
     return
+
 
 # Initializes utility configuration; dependency on mpsutility.cfg file
 # Populates secrete key and title id
@@ -711,12 +762,30 @@ def callMenu():
     print("8 - List Headers")
     print("9 - Exit")
     print("....................................")
-    print("MPS Utilit can be run interactively with the following command line options")
-    print("     mpsutility allocate build_id region repeatCount[1:100000] batchSize[1:100] pauseCount[1:600] debug[1|0]")
-    print("     mpsutility shutdown build_id region debug[1|0]")
+    callHelpInstructions()
     print()
 
     return
+
+def callHelpInstructions():
+    print("MPS Utility can be run interactively with the following command line options")
+    print("")
+    print("     mpsutility allocate build_id region batch[0:100000] requests[0:100] ramp[0:3] pauseCount[1:600] debug[1|0]")
+    print("     mpsutility scale build_id region max[0:100000] standby[0:100000] debug[1|0]")
+    print("     mpsutility shutdown build_id region debug[1|0]")
+    print("")
+    print(      "Example 1: python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 2 0")
+    print(      "Example 2: python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1")
+    print(      "Example 3: python mpsutility.py scale a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 800 200")
+    print("")
+    print("The utility enables 3 operations: allocate, scale and shutdown")
+    print("In example #1, the allocate operaton issues 200 batch requests with")
+    print("10 requests per batch with 3 seconds between allocations for a given build")
+    print("and region producing a total of 2,000 game server allocations.")
+    print("The second to last param is a rate simulator, options are 0=OFF, 1=LOW, 2=MED and 3=HIGH")
+    print("The higher the rate simulator #, the steeper the player demand ramp up curve")
+    print("The limits for batch, standby, max are 100,000 and the limits for requests are 100 representing 100 requests per batch")
+    print("")
 
 #Defines main console loop and processes user input
 def MainLoop():
@@ -754,7 +823,7 @@ def MainLoop():
             appchoice = GetAppSelection()                
 
         if choice == 0 :     #List Command Line Arguments
-            print("mpsutility build_id region repeatCount[1:100000] pauseCount[1:600] debug[1|0]")
+            callHelpInstructions()
 
         elif choice == 1:     #List Build Settings
             ListBuildSettings(1)
