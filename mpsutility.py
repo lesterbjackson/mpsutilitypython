@@ -776,7 +776,7 @@ def callHelpInstructions():
     print("")
     print(      "Example 1: python mpsutility.py allocate a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 200 10 3 2 0")
     print(      "Example 2: python mpsutility.py shutdown a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 1")
-    print(      "Example 3: python mpsutility.py scale a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 800 200")
+    print(      "Example 3: python mpsutility.py scale a780dff0-4f11-4cb1-a449-75ac1207616d WestUS 800 200 0")
     print("")
     print("The utility enables 3 operations: allocate, scale and shutdown")
     print("In example #1, the allocate operaton issues 200 batch requests with")
