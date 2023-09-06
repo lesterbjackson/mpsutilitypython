@@ -1,7 +1,7 @@
 
 Author:      Lester Jackson
 
-GitHub:      https://github.com/lesterjackson
+GitHub:      https://github.com/lesterbjackson
 
 Title:       MPSUtilityPython
 
